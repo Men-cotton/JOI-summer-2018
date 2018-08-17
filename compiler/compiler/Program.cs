@@ -31,7 +31,7 @@ namespace compiler
 						case ('.'):
 							return true ? Recursive(pc + 1, sp + 1) : 0;
 						default:
-							return commandlist[pc].c != text[sp] ? Recursive(pc + 1, sp + 1) : 0;
+							return commandlist[pc].c == text[sp] ? Recursive(pc + 1, sp + 1) : 0;
 					}
 				case "Match":
 					return sp >= text.Length ? 1 : 0;//文字列を使い切っていたらマッチ成功
@@ -177,9 +177,24 @@ namespace compiler
 	}
 	class Program
 	{
+		static void Show_Command()
+		{
+			int count = 1;
+			foreach (var command in Executer.commandlist)
+			{
+				Console.Write(count.ToString("D3") + ":");
+				if (command.opcode != "") Console.Write(" " + command.opcode);
+				if (command.c != 0) Console.Write(" " + command.c);
+				if (command.x != 0) Console.Write(" " + (command.x + 1));
+				if (command.y != 0) Console.Write(" " + (command.y + 1));
+				Console.WriteLine();
+				count++;
+			}
+		}
 		static void Main(string[] args)
 		{
-			Convert.Input_regexp("^A?KIHA?BA?RA?$");//!=[a-z] #=[A-Z]
+			Convert.Input_regexp("^(bc*d|ef*g|h*i(j*|k)*)$");//!=[a-z] #=[A-Z]
+			Show_Command();
 			Executer.text = Console.ReadLine();
 			Console.WriteLine(Executer.Recursive(0, 0) == 1 ? "YES" : "NO");
 		}
