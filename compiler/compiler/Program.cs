@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace compiler
 {
@@ -16,34 +14,40 @@ namespace compiler
 	class Executer
 	{
 		public static List<Inst> commandlist = new List<Inst>();
-		static string regexp;
-		public static int Recursive(ref int pc, ref int sp)
+		public static string text;
+		public static int Recursive(int pc, int sp)
 		{
 			switch (commandlist[pc].opcode)
 			{
 				case "Char":
-					if (!(commandlist[pc].c == regexp[sp] || commandlist[pc].c == '.'))//先頭同士がマッチするか確認
+					if (sp >= text.Length)
+						return 0;//対応する文字列がないのでアウト
+					if (commandlist[pc].c == '!')//[a-z]
+						return char.IsLower(text[sp]) ? Recursive(pc + 1, sp + 1) : 0;
+					if (commandlist[pc].c == '#')//[A-Z]
+						return char.IsUpper(text[sp]) ? Recursive(pc + 1, sp + 1) : 0;
+					if (commandlist[pc].c != text[sp] && commandlist[pc].c != '.')//先頭同士がマッチするか確認
 						return 0;
-					pc++; sp++;
-					return Recursive(ref pc, ref sp);//一個ずつ進める
+					return Recursive(pc + 1, sp + 1);//一個ずつ進める
 				case "Match":
-					return 1;
+					return sp >= text.Length ? 1 : 0;//文字列を使い切っていたらマッチ成功
 				case "Jump":
-					return Recursive(ref commandlist[pc].x, ref sp);//xの命令を実行
+					return Recursive(commandlist[pc].x, sp);//xの命令を実行
 				case "Split":
-					if (Recursive(ref commandlist[pc].x, ref sp) == 1)//xの命令を実行
+					if (Recursive(commandlist[pc].x, sp) == 1)//xの命令を実行
 						return 1;
-					return Recursive(ref commandlist[pc].y, ref sp);//yの命令を実行
+					return Recursive(commandlist[pc].y, sp);//yの命令を実行
 			}
 			return -1;//エラー
 		}
 	}
 	class Convert //このclass内では、関数は命令が開始するカウンタを返す
 	{
+		public static char[] special_letters = new char[] { '.', '!', '#' };
 		static int Make_Char(string s)//Charコマンドを作る
 		{
 			int ret = Executer.commandlist.Count;
-			Inst inst = new Inst() { opcode = "Chara", c = s[0], };
+			Inst inst = new Inst() { opcode = "Char", c = s[0], };
 			Executer.commandlist.Add(inst);
 			return ret;
 		}
@@ -54,28 +58,29 @@ namespace compiler
 			Executer.commandlist.Add(inst);
 			return ret;
 		}
-		static int Make_Sprit()//Spritコマンドを作る
+		static int Make_Split()//Splitコマンドを作る
 		{
 			int ret = Executer.commandlist.Count;
-			Inst inst = new Inst() { opcode = "Sprit", };
+			Inst inst = new Inst() { opcode = "Split", };
 			Executer.commandlist.Add(inst);
 			return ret;
 		}
 		static int Expression(string s)//繰り返し軍団をばらす関数
 		{
 			int ret = Executer.commandlist.Count;
+			if (string.IsNullOrEmpty(s)) return ret - 1;
 			switch (s[s.Length - 1])
 			{
 				case ('?'):
 				{
-					int sprit = Make_Sprit();
+					int sprit = Make_Split();
 					Executer.commandlist[sprit].x = Expression(s.Substring(0, s.Length - 1));
 					Executer.commandlist[sprit].y = Executer.commandlist.Count;
 					break;
 				}
 				case ('*'):
 				{
-					int sprit = Make_Sprit();
+					int sprit = Make_Split();
 					Executer.commandlist[sprit].x = Expression(s.Substring(0, s.Length - 1));
 					int jump = Make_Jump();
 					Executer.commandlist[jump].x = sprit;
@@ -85,8 +90,13 @@ namespace compiler
 				case ('+'):
 				{
 					int start = Expression(s.Substring(0, s.Length - 1));
-					int sprit = Make_Sprit();
+					int sprit = Make_Split();
 					Executer.commandlist[sprit].x = start; Executer.commandlist[sprit].y = Executer.commandlist.Count;
+					break;
+				}
+				case (')')://この時点で繰り返しと()以外はないはずなので、)が最後に来ているということはs全体が()
+				{
+					Sentence(s.Substring(1, s.Length - 2));
 					break;
 				}
 				default:
@@ -101,9 +111,28 @@ namespace compiler
 		{
 			int ret = Executer.commandlist.Count;
 			int start_string = 0;
-			for (int i = 1; i < s.Length; i++)
+			for (int i = 0; i < s.Length; i++)
 			{
-				if (char.IsLetter(s[i]))//文字が出てきたら直前で区切り、繰り返しをばらす過程へ
+				if (s[i] == '(')
+				{
+					Expression(s.Substring(start_string, i - start_string));
+					start_string = i;
+					int count = 0;
+					do//()内を一文字として考える
+					{
+						switch (s[i])
+						{
+							case ('('): { count++; break; }
+							case (')'): { count--; break; }
+							default: break;
+						}
+						i++;
+					} while (count > 0);
+					if (i >= s.Length)//最後までカッコで探索した場合
+						break;
+				}
+				// )aというパターンを考慮し、else ifでは無くす
+				if (char.IsLetter(s[i]) || special_letters.Contains(s[i]))//文字が出てきたら直前で区切り、繰り返しをばらす過程へ
 				{
 					Expression(s.Substring(start_string, i - start_string));
 					start_string = i;
@@ -112,15 +141,18 @@ namespace compiler
 			Expression(s.Substring(start_string, s.Length - start_string));
 			return ret;
 		}
-		public static int Sentence(string s)//選択をばらす関数
+		static int Sentence(string s)//選択をばらす関数
 		{
 			bool found = false;
+			int bracketscount = 0;//()を別々の文字列にしないように注意
 			for (int i = 0; i < s.Length && !found; i++)
 			{
-				if (s[i] == '|')
+				if (s[i] == '(') bracketscount++;
+				else if (s[i] == ')') bracketscount--;
+				else if (s[i] == '|' && bracketscount == 0)
 				{
 					found = true;
-					int sprit = Make_Sprit();
+					int sprit = Make_Split();
 					Executer.commandlist[sprit].x = Term(s.Substring(0, i));//調べた個所以前には選択はないので、連接をばらす過程へ
 					int jump = Executer.commandlist.Count; Make_Jump();
 					Executer.commandlist[sprit].y = Sentence(s.Substring(i + 1, s.Length - (i + 1)));
@@ -130,12 +162,22 @@ namespace compiler
 			}
 			return Term(s);
 		}
+		public static void Input_regexp(string s)//開始・終了地点をばらす関数
+		{
+			if (s[0] == '^') s = s.Substring(1, s.Length - 1);
+			if (s[s.Length - 1] == '$') s = s.Substring(0, s.Length - 1);
+			Sentence(s);
+			Inst finish = new Inst() { opcode = "Match", };
+			Executer.commandlist.Add(finish);
+		}
 	}
 	class Program
 	{
 		static void Main(string[] args)
 		{
-			Convert.Sentence("");
+			Convert.Input_regexp("^A?KIHA?BA?RA?$");//!=[a-z] #=[A-Z]
+			Executer.text = Console.ReadLine();
+			Console.WriteLine(Executer.Recursive(0, 0) == 1 ? "YES" : "NO");
 		}
 	}
 }
