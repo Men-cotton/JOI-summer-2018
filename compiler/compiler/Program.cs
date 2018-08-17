@@ -22,13 +22,17 @@ namespace compiler
 				case "Char":
 					if (sp >= text.Length)
 						return 0;//対応する文字列がないのでアウト
-					if (commandlist[pc].c == '!')//[a-z]
-						return char.IsLower(text[sp]) ? Recursive(pc + 1, sp + 1) : 0;
-					if (commandlist[pc].c == '#')//[A-Z]
-						return char.IsUpper(text[sp]) ? Recursive(pc + 1, sp + 1) : 0;
-					if (commandlist[pc].c != text[sp] && commandlist[pc].c != '.')//先頭同士がマッチするか確認
-						return 0;
-					return Recursive(pc + 1, sp + 1);//一個ずつ進める
+					switch (commandlist[pc].c)
+					{
+						case ('!')://[a-z]
+							return char.IsLower(text[sp]) ? Recursive(pc + 1, sp + 1) : 0;
+						case ('#')://[A-Z]
+							return char.IsUpper(text[sp]) ? Recursive(pc + 1, sp + 1) : 0;
+						case ('.'):
+							return true ? Recursive(pc + 1, sp + 1) : 0;
+						default:
+							return commandlist[pc].c != text[sp] ? Recursive(pc + 1, sp + 1) : 0;
+					}
 				case "Match":
 					return sp >= text.Length ? 1 : 0;//文字列を使い切っていたらマッチ成功
 				case "Jump":
