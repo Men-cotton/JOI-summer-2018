@@ -77,25 +77,25 @@ namespace compiler
 			{
 				case ('?'):
 				{
-					int sprit = Make_Split();
-					Executer.commandlist[sprit].x = Expression(s.Substring(0, s.Length - 1));
-					Executer.commandlist[sprit].y = Executer.commandlist.Count;
+					int split = Make_Split();
+					Executer.commandlist[split].x = Expression(s.Substring(0, s.Length - 1));
+					Executer.commandlist[split].y = Executer.commandlist.Count;
 					break;
 				}
 				case ('*'):
 				{
-					int sprit = Make_Split();
-					Executer.commandlist[sprit].x = Expression(s.Substring(0, s.Length - 1));
+					int split = Make_Split();
+					Executer.commandlist[split].x = Expression(s.Substring(0, s.Length - 1));
 					int jump = Make_Jump();
-					Executer.commandlist[jump].x = sprit;
-					Executer.commandlist[sprit].y = Executer.commandlist.Count;
+					Executer.commandlist[jump].x = split;
+					Executer.commandlist[split].y = Executer.commandlist.Count;
 					break;
 				}
 				case ('+'):
 				{
 					int start = Expression(s.Substring(0, s.Length - 1));
-					int sprit = Make_Split();
-					Executer.commandlist[sprit].x = start; Executer.commandlist[sprit].y = Executer.commandlist.Count;
+					int split = Make_Split();
+					Executer.commandlist[split].x = start; Executer.commandlist[split].y = Executer.commandlist.Count;
 					break;
 				}
 				case (')')://この時点で繰り返しと()以外はないはずなので、)が最後に来ているということはs全体が()
@@ -156,12 +156,12 @@ namespace compiler
 				else if (s[i] == '|' && bracketscount == 0)
 				{
 					found = true;
-					int sprit = Make_Split();
-					Executer.commandlist[sprit].x = Term(s.Substring(0, i));//調べた個所以前には選択はないので、連接をばらす過程へ
+					int split = Make_Split();
+					Executer.commandlist[split].x = Term(s.Substring(0, i));//調べた個所以前には選択はないので、連接をばらす過程へ
 					int jump = Executer.commandlist.Count; Make_Jump();
-					Executer.commandlist[sprit].y = Sentence(s.Substring(i + 1, s.Length - (i + 1)));
+					Executer.commandlist[split].y = Sentence(s.Substring(i + 1, s.Length - (i + 1)));
 					Executer.commandlist[jump].x = Executer.commandlist.Count;
-					return sprit;
+					return split;
 				}
 			}
 			return Term(s);
